@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+#bgfx,
+#bg-stars,
+#glowfx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#bgfx {
+  z-index: 0;
+}
+
+#bg-stars {
+  z-index: 0;
+}
+
+#glowfx {
+  z-index: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(60% 55% at 50% 0%, rgba(167, 139, 250, 0.55), rgba(56, 189, 248, 0.22) 45%, rgba(14, 165, 233, 0) 70%);
+  animation: glowPulse 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateY(var(--glowShift, 0px));
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: translateY(calc(var(--glowShift, 0px) + -8px));
+  }
+}
+
+#cursorfx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 40;
+}
