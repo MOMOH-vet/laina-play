@@ -1,21 +1,815 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>L'AInga Play — AI Exhibition</title>
-    <meta name="description" content="Международная выставка об искусстве и ИИ: инсталляции, мастер‑классы, дискуссии. Ташкент." />
-    <meta property="og:title" content="L'AInga Play — AI Exhibition" />
-    <meta property="og:description" content="Между человеком и алгоритмом возникает искусство. Декабрь 2025 — Март 2026, Ташкент." />
-    <meta property="og:type" content="website" />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0b1220" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/logo.png?v=3" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/logo.png?v=3" />
-  </head>
-  <body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
-    <div id="root"></div>
-    <noscript>Для предпросмотра требуется включенный JavaScript.</noscript>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>L'AInga Play — AI Exhibition</title>
+  <meta name="description" content="Международная выставка об искусстве и ИИ: инсталляции, мастер‑классы, дискуссии. Ташкент." />
+  <meta property="og:title" content="L'AInga Play — AI Exhibition" />
+  <meta property="og:description" content="Между человеком и алгоритмом возникает искусство. Декабрь 2025 — Март 2026, Ташкент." />
+  <meta property="og:type" content="website" />
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b1220" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="./IMG_2511%20(1).PNG?v=3">
+  <link rel="apple-touch-icon" sizes="180x180" href="./IMG_2511%20(1).PNG?v=3">
+
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://unpkg.com">
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background: #020617; color: #e2e8f0; }
+    :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    }
+    /* Background FX layer (stars + glow that follows scroll) */
+    #bgfx, #bg-stars, #glowfx { position: fixed; inset: 0; pointer-events: none; }
+    #bgfx { z-index: 0; }
+    #bg-stars { z-index: 0; }
+    #glowfx { z-index: 0; mix-blend-mode: screen; background: radial-gradient(60% 55% at 50% 0%, rgba(167,139,250,.55), rgba(56,189,248,.22) 45%, rgba(14,165,233,0) 70%); animation: glowPulse 6s ease-in-out infinite; will-change: transform, opacity; }
+    @keyframes glowPulse { 0%,100% { opacity: .55; transform: translateY(var(--glowShift,0px)); } 50% { opacity: .85; transform: translateY(calc(var(--glowShift,0px) + -8px)); } }
+    /* Cursor FX canvas overlay */
+    #cursorfx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
+  </style>
+  <!-- Tailwind (preview only) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { slate: tailwind.colors.slate, white: tailwind.colors.white } } } };
+  </script>
+  <!-- React + ReactDOM (prod UMD) and Babel for JSX (preview only) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+  <!-- Dynamic background: starfield + top glow that tracks scroll -->
+  <div id="bgfx" aria-hidden="true">
+    <canvas id="bg-stars"></canvas>
+    <div id="glowfx"></div>
+  </div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useEffect, useMemo, useRef, useState, memo, useCallback } = React;
+
+    // Inline logo (compact SVG)
+    const LOGO_URL = './IMG_2511%20(1).PNG';
+    const HERO_VIDEO_URL = './IMG_8759-_1_(1).mp4';
+
+    // --- i18n dictionary (RU/EN/UZ/FR) ---
+    const langs = ['ru','en','uz','fr'];
+    const dict = {
+      'ui.lang': {ru:'Язык', en:'Language', uz:'Til', fr:'Langue'},
+      'a11y.skip': {ru:'К содержимому', en:'Skip to content', fr:'Aller au contenu', uz:"Tarkibga o‘tish"},
+      'topbar.label': {ru:'Верхняя панель', en:'Top bar', fr:'Barre supérieure', uz:'Yuqori panel'},
+      'nav.sections': {ru:'Навигация по разделам', en:'Section navigation', fr:'Navigation par sections', uz:'Bo‘limlar navigatsiyasi'},
+      'home': {ru:'Домой', en:'Home', fr:'Accueil', uz:'Bosh sahifa'},
+
+      // Brand
+      'brand.title': {ru:"Игра в L’AIнгу", en:"The L'AInga Play", fr:"The L'AInga Play", uz:"L'AInga"},
+      'brand.subtitle': {ru:'Международная выставка', en:'International Exhibition', fr:'Exposition internationale', uz:'Xalqaro ko‘rgazma'},
+
+      // Nav
+      'nav.about': {ru:'О выставке', en:'About', fr:'À propos', uz:'Ko‘rgazma haqida'},
+      'nav.program': {ru:'Программа', en:'Program', fr:'Programme', uz:'Dastur'},
+      'nav.artists': {ru:'Художники', en:'Artists', fr:'Artistes', uz:'Rassomlar'},
+      'nav.venue': {ru:'Площадка', en:'Venue', fr:'Lieu', uz:'Manzil'},
+      'nav.partners': {ru:'Партнёры', en:'Partners', fr:'Partenaires', uz:'Hamkorlar'},
+      'nav.rsvp': {ru:'Регистрация', en:'Register', fr:'Inscription', uz:"Ro‘yxatdan o‘tish"},
+      'nav.faq': {ru:'Вопросы', en:'FAQ', fr:'FAQ', uz:'Savollar'},
+
+      // Hero
+      'hero.title': {
+        en:"Between the human and the algorithm, art happens",
+        fr:"Entre l’humain et l’algorithme naît l’art",
+        uz:"Inson va algoritm o‘rtasida sanʼat yuzaga keladi",
+        ru:""
+      },
+      'hero.date': {
+        ru:'Декабрь 2025 — Март 2026 • Ташкент',
+        en:'December 2025 — March 2026 • Tashkent',
+        fr:'Décembre 2025 — Mars 2026 • Tachkent',
+        uz:"2025‑yil dekabr — 2026‑yil mart • Toshkent"
+      },
+      'hero.cta.invite': {ru:'Получить приглашение', en:'Get Invite', fr:"Recevoir une invitation", uz:'Taklifnoma olish'},
+      'hero.cta.program': {ru:'Смотреть программу', en:'Explore Program', fr:'Voir le programme', uz:'Dasturni ko‘rish'},
+      'hero.b1': {ru:'Кураторские кластеры: естественный, искусственный, коллективный интеллект', en:'Curatorial clusters: Natural, Artificial, Collective Intelligence', fr:'Pôles curatoriaux : naturel, artificiel, collectif', uz:'Kuratorlik klasterlari: tabiiy, sunʼiy, kollektiv intellekt'},
+      'hero.b2': {ru:'Интерактивные инсталляции, мастер‑классы, дискуссии', en:'Interactive installations, workshops, talks', fr:'Installations interactives, ateliers, discussions', uz:'Interaktiv installyatsiyalar, mahorat darslari, suhbatlar'},
+      'hero.b3': {ru:'Партнёрства с музеями и тех‑индустрией', en:'Partnerships with museums & tech industry', fr:'Partenariats avec musées et tech', uz:'Muzeylar va tex‑industriya hamkorligi'},
+      'hero.visual.caption': {
+        ru:'Визуализация: абстрактные поля — макет',
+        en:'Visualization: abstract fields — mockup',
+        fr:'Visualisation : champs abstraits — maquette',
+        uz:'Vizualizatsiya: abstrakt maydonlar — maket'
+      },
+
+      // About
+      'about.title': {ru:'О выставке', en:'About the Exhibition', fr:"À propos de l’exposition", uz:'Ko‘rgazma haqida'},
+      'about.p1': {
+        ru:"«Игра в L'AIнгу» — это игра смыслов, нейронов и языков. Нас интересует не ИИ как технология, а ИИ как зеркало: что происходит, когда машина начинает видеть, слышать и помнить? Где мы находимся сейчас и где окажемся завтра? Уйдут ли живые креаторы в доставку или каждый из нас станет на вес золота? А может быть, мы вместе с ИИ создадим новую культуру и забудем, что такое константность в повествовании?",
+        en:"“The L’AInga Play” explores meanings, neurons and languages. We look at AI not just as tech, but as a mirror: what happens when a machine starts to see, hear and remember? Where are we now and where will we be tomorrow?",
+        fr:"« The L’AInga Play » explore les sens, les neurones et les langues. Nous regardons l’IA non pas seulement comme une technologie, mais comme un miroir : que se passe‑t‑il quand la machine commence à voir, entendre et se souvenir ?",
+        uz:"“L’AInga o‘yini” ma’no, neyron va tillarni o‘rganadi. Biz AI‑ni shunchaki texnologiya emas, balki ko‘zgudek ko‘ramiz: mashina ko‘ra, eshita va eslab qola boshlaganda nima bo‘ladi?"
+      },
+      'about.p2': {
+        ru:'Мы открыты к работам со всей Центральной Азии и мира. Если ты диджитал‑художник, медиа‑креатор, AI‑исследователь, режиссёр, дизайнер или писатель — присылай проект, где ИИ — не просто инструмент, а участник размышления.',
+        en:'Open to works from Central Asia and beyond. Digital artists, media creators, AI researchers, directors, designers and writers — submit projects where AI is not just a tool but a thinking partner.',
+        fr:'Ouvert aux œuvres d’Asie centrale et d’ailleurs. Artistes numériques, créateurs média, chercheurs IA, réalisateur·rice·s, designers et écrivain·e·s — envoyez des projets où l’IA est plus qu’un outil : un partenaire de pensée.',
+        uz:'Markaziy Osiyo va butun dunyodan ishlarni qabul qilamiz. Raqamli rassomlar, media yaratuvchilar, AI tadqiqotchilari, rejissyorlar, dizayнерlar, yozuvchilar — AI vosita emas, hamfikr bo‘lgan loyihalarni yuboring.'
+      },
+
+      // Venue
+      'venue.title': {ru:'Площадка', en:'Venue & Dates', fr:'Lieu & Dates', uz:'Manzil va sanalar'},
+      'venue.text': {
+        ru:'Ташкент • Декабрь 2025 — Март 2026. Точная сетка дат будет объявлена дополнительно.',
+        en:'Tashkent • December 2025 — March 2026. Detailed schedule to be announced.',
+        fr:'Tachkent • Décembre 2025 — Mars 2026. Calendrier détaillé à venir.',
+        uz:'Toshkent • 2025‑yil dekabr — 2026‑yil mart. Batafsil jadval eʼlon qilinadi.'
+      },
+      'venue.hours': {ru:'Часы работы', en:'Opening hours', fr:'Horaires', uz:'Ish vaqti'},
+      'venue.tueSun': {ru:'Вт–Вс: 10:00–20:00', en:'Tue–Sun: 10:00–20:00', fr:'Mar–Dim : 10:00–20:00', uz:'Se–Yak: 10:00–20:00'},
+      'venue.mon': {ru:'Пн: выходной', en:'Mon: closed', fr:'Lun : fermé', uz:'Du: yopiq'},
+
+      // Open Call
+      'oc.title': {ru:'Открытый набор', en:'Open Call', fr:'Appel à projets', uz:'Ochiq tanlov'},
+      'oc.subtitle': {ru:'Дедлайн: 1 декабря 2025', en:'Deadline: 1 December 2025', fr:'Date limite : 1 décembre 2025', uz:'Muddat: 2025‑yil 1‑dekabr'},
+      'oc.formats.title': {ru:'Форматы', en:'Formats', fr:'Formats', uz:'Formatlar'},
+      'oc.format.installation': {ru:'интерактивная инсталляция', en:'interactive installation', fr:'installation interactive', uz:'interaktiv installyatsiya'},
+      'oc.format.video': {ru:'видеоработа', en:'video work', fr:'œuvre vidéo', uz:'video ish'},
+      'oc.format.textviz': {ru:'текст + генеративная визуализация', en:'text + generative visualization', fr:'texte + visualisation générative', uz:'matn + generativ vizualizatsiya'},
+      'oc.format.sound': {ru:'звуковой опыт', en:'sound experience', fr:'expérience sonore', uz:'ovozli tajriba'},
+      'oc.format.datachoreo': {ru:'хореография данных', en:'data choreography', fr:'chorégraphie de données', uz:'ma’lumotlar xoreografiyasi'},
+      'oc.format.new': {ru:'или нечто новое', en:'or something new', fr:'ou quelque chose de nouveau', uz:'yoki yangicha narsa'},
+      'oc.what.title': {ru:'Что мы ищем', en:'What we look for', fr:'Ce que nous recherchons', uz:'Nimani izlaymiz'},
+      'oc.what.item1': {ru:'философские и этические размышления', en:'philosophical and ethical reflections', fr:'réflexions philosophiques et éthiques', uz:'falsafiy va axloqiy mulohazalar'},
+      'oc.what.item2': {ru:'сюжеты об идентичности', en:'stories about identity', fr:'récits sur l’identité', uz:'shaxsiyat haqidagi hikoyalar'},
+      'oc.what.item3': {ru:'синергия/конфликт с машиной', en:'synergy/conflict with the machine', fr:'synergie/conflit avec la machine', uz:'mashina bilan sinergiya/konflikt'},
+      'oc.what.item4': {ru:'сны ИИ', en:'AI dreams', fr:'rêves d’IA', uz:'AI orzulari'},
+      'oc.what.item5': {ru:'работы, где алгоритм удивляет', en:'works where the algorithm surprises', fr:'œuvres où l’algorithme surprend', uz:'algoritm hayratlantiradigan ishlar'},
+      'oc.note.special': {
+        ru:'Мы особенно ждём женщин и поддержим сильные проекты.',
+        en:'We especially encourage women to apply and will support strong projects.',
+        fr:'Nous encourageons particulièrement les femmes à candidater et soutiendrons les projets forts.',
+        uz:'Ayniqsa ayollarni ariza topshirishga chorlaymiz va kuchli loyihalarni qo‘llab‑quvvatlaymiz.'
+      },
+      'oc.form.full_name': {ru:'Имя и фамилия', en:'Full name', fr:'Nom et prénom', uz:'Ism va familiya'},
+      'oc.form.full_name.ph': {ru:'Иван Иванов', en:'Your full name', fr:'Votre nom et prénom', uz:'Ism familiya'},
+      'oc.form.country': {ru:'Страна', en:'Country', fr:'Pays', uz:'Mamlakat'},
+      'oc.form.role': {ru:'Профессия', en:'Role / Profession', fr:'Profession', uz:'Kasb'},
+      'oc.form.org': {ru:'Организация', en:'Organization', fr:'Organisation', uz:'Tashkilot'},
+      'oc.form.email': {ru:'Email', en:'Email', fr:'Email', uz:'Email'},
+      'oc.form.project_title': {ru:'Название проекта', en:'Project title', fr:'Titre du projet', uz:'Loyiha nomi'},
+      'oc.form.desc': {ru:'Описание и роль ИИ', en:'Description and the role of AI', fr:'Description et rôle de l’IA', uz:'Tavsif va AI roli'},
+      'oc.form.desc.ph': {ru:'Коротко о замысле', en:'Short concept', fr:'Concept bref', uz:'Qisqacha g‘oya'},
+      'oc.form.pdf_link': {ru:'Ссылка на PDF (drive/link)', en:'Link to PDF (drive/link)', fr:'Lien vers le PDF (drive/lien)', uz:'PDF havolasi (drive/link)'},
+      'oc.form.submit': {ru:'Получить номер регистрации', en:'Get registration number', fr:"Obtenir le numéro d’inscription", uz:'Ro‘yxat raqamini olish'},
+      'oc.note.after': {
+        ru:'После подтверждения мы свяжемся с вами по email. Дедлайн подачи — 1 декабря 2025 года.',
+        en:'After verification we will contact you by email. Submission deadline — 1 December 2025.',
+        fr:'Après vérification, nous vous contacterons par email. Date limite — 1 décembre 2025.',
+        uz:'Tekshiruvdan so‘ng siz bilan email orqali bog‘ланamiz. Oxirgi muddat — 2025‑yil 1‑dekabr.'
+      },
+
+      // Program
+      'program.title': {ru:'Программа', en:'Program', fr:'Programme', uz:'Dastur'},
+      'program.opening': {ru:'Официальное открытие', en:'Opening Ceremony', fr:'Cérémonie d’ouverture', uz:'Ochilish marosimi'},
+      'program.panel': {ru:'Панель: Искусство × ИИ', en:'Panel: Art × AI', fr:'Table ronde : Art × IA', uz:'Panel: Sanʼat × AI'},
+      'program.workshops': {ru:'Мастер‑классы', en:'Workshops', fr:'Ateliers', uz:'Mahorat darslari'},
+      'program.performance': {ru:'Перформанс', en:'Performance', fr:'Performance', uz:'Perfomans'},
+      'program.kind.keynote': {ru:'церемония', en:'ceremony', fr:'cérémonie', uz:'marosim'},
+      'program.kind.panel': {ru:'панель', en:'panel', fr:'table ronde', uz:'panel'},
+      'program.kind.workshop': {ru:'мастер‑класс', en:'workshop', fr:'atelier', uz:'mahorat darsi'},
+      'program.kind.performance': {ru:'перформанс', en:'performance', fr:'performance', uz:'perfomans'},
+
+      // Artists
+      'artists.title': {ru:'Художники', en:'Artists', fr:'Artistes', uz:'Rassomlar'},
+      'artists.name': {ru:'Имя художника', en:'Artist Name', fr:'Nom de l’artiste', uz:'Rassom nomi'},
+      'artists.blurb': {ru:'Краткое описание проекта на 1–2 строки.', en:'Short project blurb', fr:'Bref descriptif du projet', uz:'Loyiha haqida qisqa matn'},
+
+      // Partners
+      'partners.title': {ru:'Партнёры', en:'Partners & Supporters', fr:'Partenaires & soutiens', uz:'Hamkorlar va homiylar'},
+      'partners.logo.museum': {ru:'Музей', en:'Museum', fr:'Musée', uz:'Muzey'},
+      'partners.logo.tech': {ru:'Тех‑компания', en:'Tech Co.', fr:'Entreprise tech', uz:'Tex kompaniya'},
+      'partners.logo.university': {ru:'Университет', en:'University', fr:'Université', uz:'Universitet'},
+      'partners.logo.gallery': {ru:'Галерея', en:'Gallery', fr:'Galerie', uz:'Galereya'},
+      'partners.logo.media': {ru:'Медиа', en:'Media', fr:'Média', uz:'OAV'},
+
+      // RSVP
+      'rsvp.title': {ru:'Регистрация', en:'Registration', fr:'Inscription', uz:'Ro‘yxatdan o‘tish'},
+      'rsvp.subtitle': {
+        ru:'Оставьте контакты — пришлём приглашение и программу.',
+        en:'Leave your contacts — we’ll send an invite and the program.',
+        fr:'Laissez vos coordonnées — nous enverrons une invitation et le programme.',
+        uz:'Kontaktlaringizni qoldiring — taklifnoma va dastur yuboramiz.'
+      },
+      'form.name': {ru:'Имя', en:'Name', fr:'Nom', uz:'Ism'},
+      'form.name.ph': {ru:'Ваше имя', en:'Your name', fr:'Votre nom', uz:'Ismingiz'},
+      'form.org2': {ru:'Организация', en:'Organization', fr:'Organisation', uz:'Tashkilot'},
+      'form.org2.ph': {ru:'Компания / медиа / музей', en:'Company / media / museum', fr:'Entreprise / média / musée', uz:'Kompaniya / OAV / muzey'},
+      'form.phone': {ru:'Телефон', en:'Phone', fr:'Téléphone', uz:'Telefon'},
+      'form.email': {ru:'Email', en:'Email', fr:'Email', uz:'Email'},
+      'form.msg': {ru:'Комментарий', en:'Comment', fr:'Commentaire', uz:'Izoh'},
+      'form.msg.ph': {ru:'Кто вы и что интересно?', en:'Who you are and what you’re interested in', fr:'Qui vous êtes et ce qui vous intéresse', uz:'O‘zingiz haqida va qiziqishlaringiz'},
+      'form.send': {ru:'Отправить', en:'Send', fr:'Envoyer', uz:'Yuborish'},
+      'form.orEmail': {ru:'или напишите на hello@example.com', en:'or email hello@example.com', fr:'ou écrivez à hello@example.com', uz:'yoki hello@example.com manziliga yozing'},
+      'rsvp.success': {ru:'Заявка отправлена', en:'Submitted', fr:'Envoyé', uz:'Yuborildi'},
+      'rsvp.error': {ru:'Не удалось отправить, попробуйте ещё раз', en:'Failed to submit, try again', fr:'Échec de l’envoi, réessayez', uz:'Yuborib bo‘lmadi, yana urinib ko‘ring'},
+
+      // FAQ
+      'faq.title': {ru:'Частые вопросы', en:'FAQ', fr:'FAQ', uz:'Ko‘p so‘raladigan savollar'},
+      'faq.subtitle': {ru:'Коротко о главном', en:'Short answers to the essentials', fr:'L’essentiel en bref', uz:'Muhimi qisqacha'},
+      'faq.q1': {ru:'Можно ли прийти без регистрации?', en:'Can I come without registration?', fr:'Puis‑je venir sans inscription ?', uz:'Ro‘yxatdan o‘tmasdan kelish mumkinmi?'},
+      'faq.a1': {ru:'Да, но количество гостей ограничено — регистрация гарантирует вход.', en:'Yes, but capacity is limited—registration guarantees entry.', fr:'Oui, mais la capacité est limitée — l’inscription garantit l’entrée.', uz:'Ha, ammo joylar cheklangan — ro‘yxatdan o‘tish kirishni kafolatlaydi.'},
+      'faq.q2': {ru:'Будет ли англоязычная навигация?', en:'Will there be English wayfinding?', fr:'La signalétique sera‑t‑elle en anglais ?', uz:'Inglizcha navigatsiya bo‘ladimi?'},
+      'faq.a2': {ru:'Да, вся навигация и материалы доступны на RU/EN/UZ/FR.', en:'Yes, all signage and materials are available in RU/EN/UZ/FR.', fr:'Oui, toute la signalétique et les supports seront en RU/EN/UZ/FR.', uz:'Ha, barcha materiallar RU/EN/UZ/FR tillarida bo‘ladi.'},
+      'faq.q3': {ru:'Можно ли фотографировать?', en:'Is photography allowed?', fr:'La photographie est‑elle autorisée ?', uz:'Suratga olish mumkinmi?'},
+      'faq.a3': {ru:'Да, кроме специально помеченных зон.', en:'Yes, except in marked areas.', fr:'Oui, sauf dans les zones signalées.', uz:'Ha, maxsus belgilangan zonalardan tashqari.'},
+
+      // Contacts & misc
+      'contacts.title': {ru:'Контакты', en:'Contacts', fr:'Contacts', uz:'Kontaktlar'},
+      'contacts.office': {ru:'Кураторский офис', en:'Curatorial Office', fr:'Bureau de curation', uz:'Kuratorlik ofisi'},
+      'rights': {ru:'Все права защищены', en:'All rights reserved', fr:'Tous droits réservés', uz:'Barcha huquqlar himoyalangan'},
+
+      // Map placeholder
+      'map.embed': {ru:'Встроенная карта', en:'Embed Map', fr:'Carte intégrée', uz:'Xaritani joylashtirish'},
+      'map.note': {ru:'(Google Maps / Yandex Maps iFrame)', en:'(Google Maps / Yandex Maps iFrame)', fr:'(Google Maps / Yandex Maps iFrame)', uz:'(Google Maps / Yandex Maps iFrame)'}
+    };
+
+    function useI18n() {
+      const [lang, setLang] = useState(() => {
+        try { const saved = localStorage.getItem('lang'); if (langs.includes(saved)) return saved; } catch {}
+        const nav = (navigator.language || '').toLowerCase();
+        if (nav.startsWith('ru')) return 'ru'; if (nav.startsWith('fr')) return 'fr'; if (nav.startsWith('uz')) return 'uz'; return 'en';
+      });
+      useEffect(() => {
+        document.documentElement.lang = lang;
+        try { localStorage.setItem('lang', lang); } catch {}
+        const titles = {
+          ru: "Игра в Л'AIнгу — Выставка об ИИ",
+          en: "The L'AInga Play — AI Exhibition",
+          fr: "The L'AInga Play — Exposition IA",
+          uz: "L'AInga o‘yini — AI ko‘rgazmasi"
+        };
+        const descriptions = {
+          ru: "Международная выставка об искусстве и ИИ: инсталляции, мастер‑классы, дискуссии. Ташкент.",
+          en: "International exhibition on art & AI: installations, workshops, talks. Tashkent.",
+          fr: "Exposition internationale art & IA : installations, ateliers, discussions. Tachkent.",
+          uz: "Sanʼat va AI haqida xalqaro ko‘rgazma: installyatsiyalar, mahorat darslari, suhbatlar. Toshkent."
+        };
+        const ogDesc = {
+          ru: "Между человеком и алгоритмом возникает искусство. Декабрь 2025 — Март 2026, Ташкент.",
+          en: "Between human and algorithm, art happens. Dec 2025 — Mar 2026, Tashkent.",
+          fr: "Entre l’humain et l’algorithme naît l’art. Déc. 2025 — Mars 2026, Tachkent.",
+          uz: "Inson va algoritm o‘rtasida sanʼat tug‘iladi. 2025 dekabr — 2026 mart, Toshkent."
+        };
+        document.title = titles[lang] || titles.en;
+        const setMeta = (selector, content) => {
+          const el = document.querySelector(selector);
+          if (el) el.setAttribute('content', content);
+        };
+        setMeta('meta[name="description"]', descriptions[lang] || descriptions.en);
+        setMeta('meta[property="og:title"]', titles[lang] || titles.en);
+        setMeta('meta[property="og:description"]', ogDesc[lang] || ogDesc.en);
+      }, [lang]);
+      const t = (key) => (dict[key] && dict[key][lang]) || (dict[key] && dict[key]['ru']) || key;
+      return { lang, setLang, t };
+    }
+
+    function BrandMark({ size = null, className = '' }) {
+      return <img src={LOGO_URL} {...(typeof size==='number'?{width:size,height:size}:{})} alt="L'AInga logo" className={"inline-block object-contain " + className} onError={(e)=>{e.currentTarget.onerror=null; e.currentTarget.src=LOGO_URL;}} />;
+    }
+
+    function LangCapsule({ lang, setLang, t }) {
+      const [open, setOpen] = useState(false);
+      const [hover, setHover] = useState(null);
+      const codes = ['ru','en','uz','fr'];
+      const labels = { ru:'RU', en:'EN', uz:'UZ', fr:'FR' };
+      const close = useCallback(() => { setOpen(false); setHover(null); }, []);
+      const select = useCallback((code) => { setLang(code); close(); }, [setLang, close]);
+      function onKeyDown(e) {
+        if (!open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); return; }
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        const idx = codes.indexOf(hover ?? lang);
+        if (open && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+          e.preventDefault(); const dir = e.key === 'ArrowRight' ? 1 : -1;
+          const next = (idx + dir + codes.length) % codes.length; setHover(codes[next]);
+        }
+        if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(hover ?? lang); }
+      }
+      return (
+        <div className="relative" style={{ width: '12.5rem', height: '2rem' }}>
+          <div className={"group absolute left-1/2 top-0 -translate-x-1/2 h-8 w-full rounded-full ring-1 ring-white/15 bg-transparent transition-colors select-none " + (open ? "ring-white/30" : "hover:ring-white/30")}
+               role="listbox" aria-label={t('ui.lang')} tabIndex={0}
+               onMouseEnter={() => setOpen(true)} onMouseLeave={close}
+               onFocus={() => setOpen(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) close(); }}
+               onKeyDown={onKeyDown}>
+            <div className={"absolute inset-0 grid place-items-center pointer-events-none transition-opacity duration-150 " + (open ? "opacity-0" : "opacity-100")}>
+              <span className="text-xs tracking-wide">{labels[lang]}</span>
+            </div>
+            <div className={"absolute inset-0 flex items-center justify-center gap-3 px-3 transition-transform duration-200 origin-center " + (open ? "scale-x-100" : "scale-x-0")}>
+              {codes.map(code => {
+                const active = (hover ?? lang) === code;
+                return (
+                  <button key={code} type="button"
+                          className={"text-xs px-2 py-1 rounded-full transition " + (active ? "bg-white/20 text-white" : "hover:bg-white/10 text-slate-200")}
+                          role="option" aria-selected={lang === code}
+                          onMouseEnter={() => setHover(code)} onFocus={() => setHover(code)} onClick={() => select(code)}>
+                    {labels[code]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function useInlineStatus() {
+      const [status, setStatus] = useState(null);
+      const api = { show: (type, text) => setStatus({type, text}), clear: () => setStatus(null) };
+      const node = status ? (
+        <div role="status" aria-live="polite" className={"fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm " + (status.type === 'ok' ? 'bg-emerald-500 text-black' : status.type === 'error' ? 'bg-rose-500 text-white' : 'bg-white text-black')}>
+          {status.text}
+        </div>
+      ) : null;
+      return [node, api];
+    }
+
+    function AIExhibitionLanding() {
+      const { lang, setLang, t } = useI18n();
+      const [statusNode, status] = useInlineStatus();
+
+      const nav = [
+        { id: 'venue', label: t('nav.venue') },
+        { id: 'about', label: t('nav.about') },
+        { id: 'program', label: t('nav.program') },
+        { id: 'artists', label: t('nav.artists') },
+        { id: 'rsvp', label: t('nav.rsvp') },
+        { id: 'faq', label: t('nav.faq') },
+        { id: 'partners', label: t('nav.partners') },
+      ];
+
+      const schedule = [
+        { time: '10:00–11:00', title: t('program.opening'), kind: 'keynote' },
+        { time: '11:15–13:00', title: t('program.panel'), kind: 'panel' },
+        { time: '14:00–17:00', title: t('program.workshops'), kind: 'workshop' },
+        { time: '18:30–20:00', title: t('program.performance'), kind: 'performance' },
+      ];
+
+      const [active, setActive] = useState('venue');
+      useEffect(() => {
+        const ids = nav.map(n => n.id);
+        const sections = ids.map(id => document.getElementById(id)).filter(Boolean);
+        if (!sections.length) return;
+        const obs = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => { if (entry.isIntersecting) setActive(entry.target.id); });
+        }, { rootMargin: '-40% 0px -50% 0px', threshold: 0.01 });
+        sections.forEach(sec => obs.observe(sec));
+        return () => obs.disconnect();
+      }, []);
+
+      const eventJsonLd = useMemo(() => ({
+        '@context': 'https://schema.org', '@type': 'ExhibitionEvent', name: t('brand.title'),
+        startDate: '2025-12-01', endDate: '2026-03-31',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        location: { '@type': 'Place', name: (lang==='fr'?'Tachkent':lang==='en'?'Tashkent':lang==='uz'?'Toshkent':'Ташкент'), address: 'Tashkent, Uzbekistan' },
+        organizer: { '@type': 'Organization', name: 'Curatorial Office', email: 'hello@example.com' },
+      }), [lang]);
+      useEffect(() => { const el = document.getElementById('jsonld'); if (el) el.textContent = JSON.stringify(eventJsonLd); }, [eventJsonLd]);
+
+      const RSVP_ENDPOINT = null; const OC_ENDPOINT = null;
+
+      async function handleRSVPSubmit(e) {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        try {
+          if (RSVP_ENDPOINT) {
+            const res = await fetch(RSVP_ENDPOINT, { method: 'POST', body: fd });
+            if (!res.ok) throw new Error('network');
+          } else {
+            const list = JSON.parse(localStorage.getItem('rsvp') || '[]');
+            list.push({ ...Object.fromEntries(fd.entries()), ts: Date.now() });
+            localStorage.setItem('rsvp', JSON.stringify(list));
+          }
+          status.show('ok', t('rsvp.success'));
+        } catch (err) {
+          status.show('error', t('rsvp.error'));
+        } finally {
+          setTimeout(() => status.clear(), 2500);
+        }
+      }
+
+      return (
+        <div className="min-h-screen relative">
+          <script id="jsonld" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }} />
+
+          <a href="#main" className="sr-only focus:not-sr-only fixed top-2 left-2 z-[1000] bg-white text-slate-900 px-3 py-1 rounded">{t('a11y.skip')}</a>
+
+          <header className="sticky top-0 z-50 backdrop-blur border-b border-white/10 bg-slate-950/70" aria-label={t('topbar.label')}>
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+              <a href="#top" className="flex items-center gap-3 group" aria-label={t('home')}>
+                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center ring-1 ring-white/15 group-hover:ring-white/30 transition overflow-hidden">
+                 <BrandMark size={40} />
+                </div>
+
+                <div className="leading-tight">
+                  <div className="font-semibold text-sm tracking-wide">{t('brand.title')}</div>
+                  <div className="text-xs text-slate-400">{t('brand.subtitle')}</div>
+                </div>
+              </a>
+
+              <nav className="hidden md:flex items-center gap-6" aria-label={t('nav.sections')}>
+                {nav.map((n) => (
+                  <a key={n.id} href={`#${n.id}`}
+                     className={"text-sm transition-colors " + (active === n.id ? "text-white" : "text-slate-300 hover:text-white")}
+                     aria-current={active === n.id ? 'page' : undefined}>
+                    {n.label}
+                  </a>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-2">
+                <LangCapsule lang={lang} setLang={setLang} t={t} />
+                <a href="#rsvp" className="hidden sm:inline-block text-xs px-3 py-1 rounded-full bg-white text-slate-900 font-semibold hover:opacity-90">
+                  {t('nav.rsvp')}
+                </a>
+              </div>
+            </div>
+          </header>
+
+          <section id="top" className="relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none [mask-image:radial-gradient(60%_60%_at_50%_10%,black,transparent)]">
+              <GridBG />
+            </div>
+            <main id="main" className="max-w-7xl mx-auto px-4 pt-14 md:pt-20 pb-14 md:pb-24">
+              <div className="grid md:grid-cols-2 lg:grid-cols-[1.05fr_1fr] gap-10 md:gap-12 items-start">
+                <div className="self-start">
+                  <h1 className="text-[36px] md:text-[44px] font-semibold leading-[1.15] tracking-tight max-w-[36ch]">
+                    {lang === 'ru' ? (
+                      <>
+                        <span className="inline-flex items-center gap-3 align-top text-[1.35em] md:text-[1.35em] leading-[1.05]">
+                          <BrandMark className="h-[1.15em] w-auto -translate-y-[1px]" />
+                          <span>ИГРА В L&apos;AIнгу</span>
+                        </span>
+                        <span className="block text-[.92em] md:text-[.92em]">Между человеком и алгоритмом</span>
+                        <span className="block text-[.92em] md:text-[.92em]">возникает волшебство искусства</span>
+                      </>
+                    ) : (
+                      <span className="inline-flex items-center gap-3 align-top">
+                        <BrandMark className="h-[1.05em] w-auto -translate-y-[1px]" />
+                        {t('hero.title')}
+                      </span>
+                    )}
+                  </h1>
+                  <p className="mt-3 md:mt-4 text-slate-300 text-base md:text-lg max-w-xl">{t('hero.date')}</p>
+                  <div className="mt-6 flex flex-wrap gap-3 items-center">
+                    <a href="#rsvp" className="px-5 py-3 rounded-2xl bg-white text-slate-900 font-semibold">{t('hero.cta.invite')}</a>
+                    <a href="#program" className="px-5 py-3 rounded-2xl ring-1 ring-white/20 hover:ring-white/40">{t('hero.cta.program')}</a>
+                  </div>
+                  <ul className="mt-6 text-sm text-slate-400 space-y-1">
+                    <li>• {t('hero.b1')}</li>
+                    <li>• {t('hero.b2')}</li>
+                    <li>• {t('hero.b3')}</li>
+                  </ul>
+                </div>
+                <HeroVideo />
+              </div>
+            </main>
+          </section>
+
+          <Section id="venue" title={t('venue.title')}>
+            <div className="grid md:grid-cols-[1.6fr_0.6fr] gap-6">
+              <div>
+                <p className="text-slate-300">{t('venue.text')}</p>
+                <div className="mt-4 p-4 rounded-2xl ring-1 ring-white/10 bg-white/5 text-sm text-slate-300">
+                  <div className="font-semibold">{t('venue.hours')}</div>
+                  <ul className="mt-2 space-y-1 list-disc list-inside">
+                    <li>{t('venue.tueSun')}</li>
+                    <li>{t('venue.mon')}</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="rounded-2xl overflow-hidden ring-1 ring-white/10 w-full md:max-w-md ml-auto">
+                <MapPlaceholder t={t} />
+              </div>
+            </div>
+          </Section>
+
+          <Section id="about" title={t('about.title')}>
+            <p className="text-slate-300 max-w-3xl">{t('about.p1')}</p>
+            <div className="mt-6 text-slate-300 max-w-3xl"><p className="mb-2">{t('about.p2')}</p></div>
+          </Section>
+
+          <Section id="open-call" title={t('oc.title')} subtitle={t('oc.subtitle')}>
+            <div className="grid md:grid-cols-2 xl:grid-cols-[1.05fr_1.2fr] gap-8">
+              <div className="space-y-4 text-slate-300">
+                <div>
+                  <div className="font-semibold">{t('oc.formats.title')}</div>
+                  <ul className="mt-2 list-disc list-inside text-slate-300">
+                    <li>{t('oc.format.installation')}</li>
+                    <li>{t('oc.format.video')}</li>
+                    <li>{t('oc.format.textviz')}</li>
+                    <li>{t('oc.format.sound')}</li>
+                    <li>{t('oc.format.datachoreo')}</li>
+                    <li>{t('oc.format.new')}</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-semibold">{t('oc.what.title')}</div>
+                  <ul className="mt-2 list-disc list-inside text-slate-300">
+                    <li>{t('oc.what.item1')}</li>
+                    <li>{t('oc.what.item2')}</li>
+                    <li>{t('oc.what.item3')}</li>
+                    <li>{t('oc.what.item4')}</li>
+                    <li>{t('oc.what.item5')}</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 p-4 text-sm text-slate-300">{t('oc.note.special')}</div>
+                <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); }}>
+                  <Input label={t('oc.form.full_name')} name="full_name" placeholder={t('oc.form.full_name.ph')} required />
+                  <Input label={t('oc.form.country')} name="country" required />
+                  <Input label={t('oc.form.role')} name="role" required />
+                  <Input label={t('oc.form.org')} name="org" />
+                  <Input label={t('oc.form.email')} type="email" name="email" required autoComplete="email" />
+                  <Input label={t('oc.form.project_title')} name="project_title" required />
+                  <label className="block" htmlFor="desc"><span className="text-sm text-slate-300">{t('oc.form.desc')}</span>
+                    <textarea id="desc" name="desc" className="mt-1 w-full p-3 rounded-xl bg-white/5 ring-1 ring-white/10 focus:outline-none" rows={4} placeholder={t('oc.form.desc.ph')} required aria-required="true"></textarea>
+                  </label>
+                  <Input label={t('oc.form.pdf_link')} name="pdf_link" placeholder="https://..." />
+                  <div className="flex items-center gap-3">
+                    <button type="submit" className="px-5 py-3 rounded-2xl bg-white text-slate-900 font-semibold">{t('oc.form.submit')}</button>
+                  </div>
+                  <p className="text-xs text-slate-400">{t('oc.note.after')}</p>
+                </form>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="program" title={t('program.title')}>
+            <div className="grid md:grid-cols-2 gap-4">
+              {schedule.map((s, i) => (
+                <div key={i} className="rounded-2xl p-4 ring-1 ring-white/10 bg-white/5">
+                  <div className="text-sm text-slate-400">{s.time}</div>
+                  <div className="mt-1 font-medium">{s.title}</div>
+                  <Badge kind={s.kind} t={t} />
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="artists" title={t('artists.title')}>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1,2,3,4,5,6].map((n) => (
+                <div key={n} className="rounded-2xl overflow-hidden ring-1 ring-white/10 group">
+                  <div className="aspect-[4/3] bg-gradient-to-br from-fuchsia-500/20 via-indigo-500/10 to-cyan-500/20" />
+                  <div className="p-4"><div className="font-medium">{t('artists.name')} #{n}</div><div className="text-sm text-slate-400 mt-1">{t('artists.blurb')}</div></div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="rsvp" title={t('rsvp.title')} subtitle={t('rsvp.subtitle')}>
+            <form className="grid md:grid-cols-2 gap-4 max-w-3xl" method="POST" action="#" onSubmit={handleRSVPSubmit}>
+              <Input label={t('form.name')} name="name" placeholder={t('form.name.ph')} required autoComplete="name" />
+              <Input label={t('form.email')} name="email" type="email" placeholder="name@example.com" required autoComplete="email" />
+              <Input label={t('form.org2')} name="org" placeholder={t('form.org2.ph')} autoComplete="organization" />
+              <Input label={t('form.phone')} name="phone" placeholder="+998 xx xxx xx xx" autoComplete="tel" />
+              <div className="md:col-span-2">
+                <label className="text-sm text-slate-300" htmlFor="rsvp_message">{t('form.msg')}</label>
+                <textarea id="rsvp_message" name="message" className="mt-1 w-full p-3 rounded-xl bg-white/5 ring-1 ring-white/10 focus:outline-none" rows={4} placeholder={t('form.msg.ph')} />
+              </div>
+              <div className="md:col-span-2 flex items-center gap-3">
+                <button type="submit" className="px-5 py-3 rounded-2xl bg-white text-slate-900 font-semibold">{t('form.send')}</button>
+                <a href="mailto:hello@example.com" className="text-sm text-slate-300 underline">{t('form.orEmail')}</a>
+              </div>
+            </form>
+          </Section>
+
+          <Section id="faq" title={t('faq.title')} subtitle={t('faq.subtitle')}>
+            <div className="grid gap-3 max-w-3xl">
+              <FaqItem q={t('faq.q1')} a={t('faq.a1')} />
+              <FaqItem q={t('faq.q2')} a={t('faq.a2')} />
+              <FaqItem q={t('faq.q3')} a={t('faq.a3')} />
+            </div>
+          </Section>
+
+          <Section id="partners" title={t('partners.title')}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              {[t('partners.logo.museum'),t('partners.logo.tech'),t('partners.logo.university'),t('partners.logo.gallery'),t('partners.logo.media')].map(p => (
+                <div key={p} className="h-16 rounded-xl ring-1 ring-white/10 grid place-items-center text-sm text-slate-300 bg-white/5">{p}</div>
+              ))}
+            </div>
+          </Section>
+
+          <footer className="mt-20 border-t border-white/10">
+            <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <div className="font-semibold">{t('contacts.title')}</div>
+                <div className="text-sm text-slate-300 mt-1">{t('contacts.office')}</div>
+                <div className="text-sm text-slate-400 mt-2">email: hello@example.com</div>
+              </div>
+              <div className="md:text-right text-sm text-slate-400">© 2025 {t('brand.title')} • {t('rights')}</div>
+            </div>
+          </footer>
+
+          {statusNode}
+        </div>
+      );
+    }
+
+    function Section({ id, title, subtitle, children }) {
+      return (
+        <section id={id} className="max-w-7xl mx-auto px-4 py-16 md:py-24 scroll-mt-24" data-section>
+          <div className="mb-8">
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">{title}</h2>
+            {subtitle && (<p className="mt-2 text-slate-400 max-w-3xl">{subtitle}</p>)}
+          </div>
+          {children}
+        </section>
+      );
+    }
+
+    function Input({ label, name, id, type = 'text', autoComplete, ...props }) {
+      const inputId = id ?? name;
+      return (
+        <label className="block" htmlFor={inputId}>
+          <span className="text-sm text-slate-300">{label}</span>
+          <input id={inputId} name={name} type={type} autoComplete={autoComplete ?? (type === 'email' ? 'email' : name)} {...props}
+            className="mt-1 w-full p-3 rounded-xl bg-white/5 ring-1 ring-white/10 focus:outline-none" />
+        </label>
+      );
+    }
+
+    function Badge({ kind, t }) {
+      const map = { keynote: '#EAB308', panel: '#38BDF8', workshop: '#22C55E', performance: '#A78BFA' };
+      return (
+        <span className="inline-flex items-center gap-2 text-xs mt-3 px-2.5 py-1 rounded-full" style={{ background: '#ffffff10', border: '1px solid #ffffff22' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: map[kind] || '#94A3B8' }} />
+          <span className="text-slate-300 capitalize">{t(`program.kind.${kind}`) || kind}</span>
+        </span>
+      );
+    }
+
+    function FaqItem({ q, a }) {
+      const [open, setOpen] = useState(false);
+      const id = Math.random().toString(36).slice(2);
+      return (
+        <div className="rounded-2xl ring-1 ring-white/10 bg-white/5">
+          <button className="w-full text-left p-4 flex items-center justify-between"
+                  onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={`faq-${id}`}>
+            <span className="font-medium pr-4">{q}</span>
+            <span className="text-slate-400" aria-hidden>{open ? '–' : '+'}</span>
+          </button>
+          {open && <div id={`faq-${id}`} className="px-4 pb-4 text-slate-300">{a}</div>}
+        </div>
+      );
+    }
+
+    const GridBG = memo(function GridBG() {
+      return (
+        <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 800 600" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <radialGradient id="glow" cx="50%" cy="10%" r="70%">
+              <stop offset="0%" stopColor="#A78BFA" stopOpacity="0.7" />
+              <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect x="0" y="0" width="800" height="600" fill="url(#glow)" />
+          <g stroke="white" strokeOpacity="0.06">
+            {Array.from({ length: 21 }).map((_, i) => (<line key={i} x1={i * 40} y1="0" x2={i * 40} y2="600" />))}
+            {Array.from({ length: 16 }).map((_, i) => (<line key={i} x1="0" y1={i * 40} x2="800" y2={i * 40} />))}
+          </g>
+        </svg>
+      );
+    });
+
+    function IconSound({ muted }) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" aria-hidden="true">
+          <path d="M5.5 15H7.8L11.5 18V6L7.8 9H5.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          {muted ? (
+            <>
+              <line x1="15" y1="9" x2="19" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="19" y1="9" x2="15" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </>
+          ) : (
+            <>
+              <path d="M15 9.5C16.4 10.6 16.4 13.4 15 14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M17.5 7.5C19.7 9.4 19.7 14.6 17.5 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </>
+          )}
+        </svg>
+      );
+    }
+
+    function HeroVideo() {
+      const videoRef = useRef(null);
+      const [muted, setMuted] = useState(true);
+
+      useEffect(() => {
+        if (videoRef.current) {
+          videoRef.current.muted = muted;
+        }
+      }, [muted]);
+
+      const toggleMute = useCallback(() => {
+        const next = !muted;
+        setMuted(next);
+        const video = videoRef.current;
+        if (video) {
+          video.muted = next;
+          if (!next) {
+            video.play().catch(() => {});
+          }
+        }
+      }, [muted]);
+
+      return (
+        <div className="relative">
+          <div className="relative aspect-[4/3] rounded-3xl ring-1 ring-white/10 overflow-hidden bg-black">
+            <video
+              ref={videoRef}
+              src={HERO_VIDEO_URL}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              className="w-full h-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="absolute bottom-3 right-3 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white ring-1 ring-white/30 backdrop-blur-sm transition hover:bg-black/55"
+              aria-label={muted ? 'Включить звук' : 'Выключить звук'}
+            >
+              <IconSound muted={muted} />
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-slate-400">Визуализация: видео — демонстрация</p>
+        </div>
+      );
+    }
+
+    function MapPlaceholder({ t }) {
+      return (
+        <div className="aspect-[4/3] bg-white/5 grid place-items-center text-slate-400">
+          <div className="text-center p-6"><div className="font-medium">{t('map.embed')}</div><div className="text-sm mt-1">{t('map.note')}</div></div>
+        </div>
+      );
+    }
+
+    const mount = document.getElementById('root');
+    (ReactDOM.createRoot ? ReactDOM.createRoot(mount) : ReactDOM).render(<AIExhibitionLanding />);
+  </script>
+
+  <!-- Background stars (soft cyan twinkle) -->
+  <script>
+  (() => {
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const c = document.getElementById('bg-stars'); if (!c || reduceMotion) return;
+    const ctx = c.getContext('2d');
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    function resize(){ c.width = Math.floor(innerWidth * dpr); c.height = Math.floor(innerHeight * dpr); ctx.setTransform(dpr,0,0,dpr,0,0); init(); }
+    window.addEventListener('resize', resize, {passive:true});
+    let stars = []; function init(){ const count = Math.round(innerWidth*innerHeight/15000); stars = Array.from({length: count}, () => ({ x: Math.random()*innerWidth, y: Math.random()*innerHeight, r: Math.random()*1.2+0.2, p: Math.random()*Math.PI*2, s: (Math.random()*0.7+0.3)/1000 })); }
+    resize();
+    function loop(t){ ctx.clearRect(0,0, innerWidth, innerHeight); for(const s of stars){ const a = 0.12 + 0.25*(0.5+Math.sin(t*s.s + s.p)); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(56,189,248,0.9)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); } ctx.globalAlpha=1; requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  })();
+  // Top glow follows scroll (subtle parallax)
+  (() => {
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const el = document.getElementById('glowfx'); if (!el || reduceMotion) return;
+    function onScroll(){ const y = window.scrollY; el.style.setProperty('--glowShift', (-(y%120)/6).toFixed(1)+'px'); }
+    window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  })();
+  </script>
+
+  <!-- Cursor FX -->
+  <canvas id="cursorfx-canvas"></canvas>
+  <script>
+  (() => {
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduceMotion) return;
+    const canvas = document.getElementById('cursorfx-canvas'); const ctx = canvas.getContext('2d');
+    let dpr = Math.min(window.devicePixelRatio || 1, 2); function resize(){ const rect = canvas.getBoundingClientRect(); canvas.width = Math.floor(rect.width*dpr); canvas.height = Math.floor(rect.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);} window.addEventListener('resize', resize, {passive:true}); resize();
+    const colors = ['#22D3EE','#38BDF8','#0ea5e9']; const particles = []; const MAX_PARTICLES = 600; const TRAIL_PER_MOVE = 4; let rafId = null; let lastTime = performance.now(); let lastClickable = null;
+    function spawn(x,y,speed,angle,size,life){ particles.push({ x,y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life, maxLife:life, size, color:colors[(Math.random()*colors.length)|0] }); }
+    window.addEventListener('pointermove', (e)=>{ const x=e.clientX,y=e.clientY; for(let i=0;i<TRAIL_PER_MOVE;i++){ const a=Math.random()*Math.PI*2; const s=0.4+Math.random()*1.2; spawn(x,y,s,a,1.5+Math.random()*1.2,500+Math.random()*500);} if(!rafId) rafId=requestAnimationFrame(loop); }, {passive:true});
+    function closestClickable(el){ while(el&&el!==document.body){ const t=el.tagName; if(t==='A'||t==='BUTTON'||t==='INPUT'||t==='SELECT'||t==='TEXTAREA'||el.getAttribute('role')==='button'||el.hasAttribute('data-clickable')) return el; el=el.parentElement;} return null; }
+    window.addEventListener('pointerover',(e)=>{ const clickable = closestClickable(e.target) || (getComputedStyle(e.target).cursor==='pointer'? e.target : null); if(clickable && clickable!==lastClickable){ lastClickable=clickable; const x=e.clientX,y=e.clientY; const count=22; for(let i=0;i<count;i++){ const a=(i/count)*Math.PI*2 + Math.random()*0.25; const s=1.6+Math.random()*1.6; spawn(x,y,s,a,2+Math.random()*2,600+Math.random()*500);} if(!rafId) rafId=requestAnimationFrame(loop);} else if(!clickable){ lastClickable=null; } }, {passive:true});
+    window.addEventListener('pointerout',(e)=>{ if(closestClickable(e.target) && !closestClickable(e.relatedTarget)) lastClickable=null; }, {passive:true});
+    function loop(ts){ rafId=null; const now=ts||performance.now(); const dt=Math.min(now-lastTime,50); lastTime=now; ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr); ctx.globalCompositeOperation='lighter'; for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt; if(p.life<=0){ particles.splice(i,1); continue;} p.vx*=0.985; p.vy*=0.985; p.vy+=0.02; p.x+=p.vx*(dt/16); p.y+=p.vy*(dt/16); const t=p.life/p.maxLife; const r=p.size*(0.5+0.5*t); const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*3); g.addColorStop(0, p.color+'cc'); g.addColorStop(1, p.color+'00'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,r*3,0,Math.PI*2); ctx.fill(); ctx.fillStyle=p.color; ctx.globalAlpha=0.9*Math.max(0.2,t); ctx.beginPath(); ctx.arc(p.x,p.y,r*0.6,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; } ctx.globalCompositeOperation='source-over'; if(particles.length>MAX_PARTICLES) particles.splice(0, particles.length-MAX_PARTICLES); if(particles.length) rafId=requestAnimationFrame(loop); }
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden&&rafId){ cancelAnimationFrame(rafId); rafId=null; }});
+  })();
+  </script>
+
+  <noscript>Для предпросмотра требуется включенный JavaScript (React + TailwindCDN).</noscript>
+</body>
 </html>
