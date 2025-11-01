@@ -10,20 +10,7 @@
   <meta property="og:type" content="website" />
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0b1220" />
-  <meta http-equiv="Content-Security-Policy"
-        content="
-        default-src 'self';
-        base-uri 'self';
-        form-action 'self' mailto:;
-        object-src 'none';
-        img-src 'self' data: https:;
-        font-src 'self' https://fonts.gstatic.com data:;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-        script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com;
-        connect-src 'self';
-        frame-ancestors 'none';
-        upgrade-insecure-requests;
-      ">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' mailto:; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -31,8 +18,8 @@
   <link rel="icon" type="image/png" sizes="32x32" href="./assets/AIngaLogo.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/AIngaLogo.png?v=2">
 
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://unpkg.com">
   <style>
     html { scroll-behavior: smooth; }
     body { background: #020617; color: #e2e8f0; }
@@ -50,18 +37,14 @@
     #cursorfx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
   </style>
   <!-- Tailwind (preview only) -->
-  <script src="https://cdn.tailwindcss.com@3.4.10" crossorigin="anonymous"></script>
-  <script src="./scripts/setup/tailwind-config.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { slate: tailwind.colors.slate, white: tailwind.colors.white } } } };
+  </script>
   <!-- React + ReactDOM (prod UMD) and Babel for JSX (preview only) -->
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"
-          integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"
-          crossorigin="anonymous" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"
-          integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"
-          crossorigin="anonymous" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.2/babel.min.js"
-          integrity="sha384-k7PH0JkgUG2yyglN6E466+vWXT14BMWrMUR3pvN8MPmMXxMvmXrKE+g6u40qCMgf"
-          crossorigin="anonymous"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
   <!-- Dynamic background: starfield + top glow that tracks scroll -->
